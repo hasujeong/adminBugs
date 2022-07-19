@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diquest.admin.main.repository.MainMapper">
+	
+	<select id="performChart" resultType="com.diquest.admin.main.domain.ChartEntity">
+		 SELECT 
+			T.REG, dayT.MIN2, IFNULL(dayT.CNT, 0) AS CNT, 
+			DATE_FORMAT(#{before}, '%Y-%m-%d %H:%i') AS BEFOREDATE, 
+			DATE_FORMAT(#{now}, '%Y-%m-%d %H:%i') AS NOWDATE
+		FROM 
+		(
+			SELECT @N := @N+5 AS REG
+		    FROM IR_QUERY_LOG_STATS, (SELECT @N:=-5 FROM DUAL) NN
+			LIMIT 12
+		) AS T
+		LEFT JOIN
+		(
+				SELECT MINUTE(REGISTERED) AS MIN2
+					, IFNULL(ROUND(AVG(RESPONSE_TIME)), 0) AS CNT
+				FROM IR_QUERY_LOG_STATS
+		        WHERE
+		        	SERVER NOT IN('adminServer')
+			    <if test="now !=null and now !=''">
+					AND REGISTERED BETWEEN DATE_FORMAT(#{before}, '%Y-%m-%d %H:%i:%s') AND DATE_FORMAT(#{now}, '%Y-%m-%d %H:%i:%s')
+				</if> 
+		        <if test="colname !=null and colname !=''">
+		        	AND COLLECTION_ID = #{colname}
+		        </if>	
+		        GROUP BY MIN2
+		) AS dayT
+		ON T.REG = dayT.MIN2
+		ORDER BY T.REG
+	</select>
+
+	<update id="updateLogintime" parameterType="HashMap">
+		UPDATE log_stat.MEMBER_LOGIN
+		SET LOGINTIME = now() 
+		WHERE 
+			USER_ID = #{login_id}
+		    AND USER_PWD = #{login_pwd}
+	</update>
+	
+</mapper>
